@@ -22,10 +22,6 @@
 5. 选择项目文件夹
 6. 插件安装完成！
 
-### 图标文件
-
-需要以下PNG图标：`icons/icon16.png`、`icons/icon32.png`、`icons/icon48.png`、`icons/icon128.png`。
-
 ## 使用方法
 
 1. **登录B站**：确保您已在B站网站登录账号
