@@ -7,6 +7,18 @@ class BilibiliExporter {
         this.allFollowings = [];
         this.currentPage = 1;
         this.totalPages = 0;
+        // 富集相关
+        this.enableEnrich = false;
+        this.enrichFields = {
+            followers: true,
+            likes: true,
+            videos: false,
+            level: false,
+            official: false
+        };
+        this.enrichStats = { done: 0, total: 0, skipped: 0 };
+        this.maxConcurrency = 6; // 可在UI中调整
+        this.enableAdaptive = false; // 自适应降速
         
         this.init();
     }
@@ -21,6 +33,42 @@ class BilibiliExporter {
     bindEvents() {
         const exportBtn = document.getElementById('exportBtn');
         exportBtn.addEventListener('click', () => this.startExport());
+        const enrichToggle = document.getElementById('enrichToggle');
+        const enrichOptions = document.getElementById('enrichOptions');
+        const enrichProgress = document.getElementById('enrichProgress');
+        const sortRow = document.getElementById('sortRow');
+        if (enrichToggle) {
+            enrichToggle.addEventListener('change', (e) => {
+                this.enableEnrich = e.target.checked;
+                enrichOptions.style.display = this.enableEnrich ? 'block' : 'none';
+                enrichProgress.style.display = this.enableEnrich ? 'block' : 'none';
+                // 排序常显，不再隐藏
+            });
+        }
+        const concurrencyInput = document.getElementById('concurrencyInput');
+        const concurrencyInfo = document.getElementById('concurrencyInfo');
+        if (concurrencyInput) {
+            // 仅限制最小为1，不再设置上限，交由用户自行把控（建议≤20）
+            const clamp = (v) => Math.max(1, Number(v) || 6);
+            const update = () => {
+                this.maxConcurrency = clamp(concurrencyInput.value);
+                if (concurrencyInfo) concurrencyInfo.textContent = `（并发 ${this.maxConcurrency}）`;
+            };
+            concurrencyInput.addEventListener('input', update);
+            update();
+        }
+        const adaptiveToggle = document.getElementById('adaptiveToggle');
+        if (adaptiveToggle) {
+            adaptiveToggle.addEventListener('change', (e) => {
+                this.enableAdaptive = e.target.checked;
+            });
+        }
+        // 读取字段复选框
+        document.querySelectorAll('.enrich-field').forEach(cb => {
+            cb.addEventListener('change', () => {
+                this.enrichFields[cb.value] = cb.checked;
+            });
+        });
     }
     
     // 更新状态显示
@@ -164,12 +212,124 @@ class BilibiliExporter {
             throw error;
         }
     }
+
+    // 基础重试封装（指数退避）
+    async requestWithRetry(url, options = {}, retries = 2) {
+        let attempt = 0;
+        while (true) {
+            try {
+                const resp = await fetch(url, { credentials: 'include', ...options });
+                if (!resp.ok) {
+                    // 自适应：429 视为限流信号
+                    if (this.enableAdaptive && resp.status === 429 && this.maxConcurrency > 3) {
+                        this.maxConcurrency = Math.max(3, Math.floor(this.maxConcurrency / 2));
+                        const info = document.getElementById('concurrencyInfo');
+                        if (info) info.textContent = `（并发 ${this.maxConcurrency}）`;
+                    }
+                    throw new Error(`HTTP错误: ${resp.status}`);
+                }
+                const json = await resp.json();
+                if (json.code !== 0) throw new Error(json.message || 'API错误');
+                return json.data;
+            } catch (e) {
+                if (attempt >= retries) throw e;
+                let backoff = 500 * Math.pow(3, attempt); // 500 -> 1500 -> 4500
+                if (this.enableAdaptive) backoff *= 1.5; // 降速更温和
+                await new Promise(r => setTimeout(r, backoff));
+                attempt++;
+            }
+        }
+    }
+
+    // 并发池执行器
+    async runWithConcurrency(tasks, limit = this.maxConcurrency) {
+        const results = new Array(tasks.length);
+        let idx = 0;
+        const workers = new Array(Math.min(limit, tasks.length)).fill(0).map(async () => {
+            while (idx < tasks.length) {
+                const cur = idx++;
+                try {
+                    results[cur] = await tasks[cur]();
+                } catch (e) {
+                    results[cur] = { error: e };
+                }
+            }
+        });
+        await Promise.all(workers);
+        return results;
+    }
+
+    // 为每个 mid 富集更多信息（按选中字段）
+    async enrichFollowings(followings) {
+        const needAny = Object.values(this.enrichFields).some(Boolean);
+        if (!this.enableEnrich || !needAny) return {};
+
+        const enrichCountEl = document.getElementById('enrichCount');
+        const enrichSkippedEl = document.getElementById('enrichSkipped');
+
+        this.enrichStats = { done: 0, total: followings.length, skipped: 0 };
+        const tasks = followings.map((up, i) => async () => {
+            const mid = up.mid;
+            const result = {};
+            // followers
+            if (this.enrichFields.followers) {
+                try {
+                    const stat = await this.requestWithRetry(`${this.apiBase}/x/relation/stat?vmid=${mid}`);
+                    result.followers = stat.follower;
+                } catch (_) { this.enrichStats.skipped++; }
+            }
+            // likes
+            if (this.enrichFields.likes) {
+                try {
+                    const upstat = await this.requestWithRetry(`${this.apiBase}/x/space/upstat?mid=${mid}`);
+                    result.likes = upstat && upstat.likes != null ? upstat.likes : (upstat && upstat.data && upstat.data.likes);
+                } catch (_) { this.enrichStats.skipped++; }
+            }
+            // videos count
+            if (this.enrichFields.videos) {
+                try {
+                    const navnum = await this.requestWithRetry(`${this.apiBase}/x/space/navnum?mid=${mid}`);
+                    result.videoCount = navnum && (navnum.video || navnum.video_archive || navnum.toview || navnum.dynamic) ? (navnum.video || navnum.video_archive) : (navnum && navnum.data && navnum.data.video);
+                } catch (_) { this.enrichStats.skipped++; }
+            }
+            // level & official
+            if (this.enrichFields.level || this.enrichFields.official) {
+                try {
+                    const info = await this.requestWithRetry(`${this.apiBase}/x/space/acc/info?mid=${mid}`);
+                    if (this.enrichFields.level) result.level = info.level;
+                    if (this.enrichFields.official) result.official = info.official && (info.official.title || info.official.role || info.official.type) ? info.official : (info.official_verify || null);
+                } catch (_) { this.enrichStats.skipped++; }
+            }
+
+            this.enrichStats.done++;
+            if (enrichCountEl) enrichCountEl.textContent = `${this.enrichStats.done}/${this.enrichStats.total}`;
+            if (enrichSkippedEl) enrichSkippedEl.textContent = `（已跳过 ${this.enrichStats.skipped}）`;
+            // 轻微节流
+            await new Promise(r => setTimeout(r, 300));
+            return { mid, data: result };
+        });
+
+        const results = await this.runWithConcurrency(tasks, this.maxConcurrency);
+        const map = {};
+        for (const r of results) {
+            if (r && r.mid) map[r.mid] = r.data;
+        }
+        return map;
+    }
     
     // 生成HTML文件内容
     generateHTML(followings) {
         const currentDate = new Date().toLocaleDateString('zh-CN');
         const currentTime = new Date().toLocaleTimeString('zh-CN');
         
+        const hasFollowers = followings.some(u => u.followers != null);
+        const sortSelect = document.getElementById('sortSelect');
+        const sortValue = sortSelect ? sortSelect.value : 'none';
+        let list = [...followings];
+        if (hasFollowers && sortValue === 'followers_desc') {
+            list.sort((a, b) => (b.followers || 0) - (a.followers || 0));
+        }
+
         return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -398,7 +558,7 @@ class BilibiliExporter {
         
         <div class="content">
             <div class="grid" id="upGrid">
-                ${followings.map(up => `
+                ${list.map(up => `
                     <a href="https://space.bilibili.com/${up.mid}" target="_blank" class="up-card">
                         <div class="up-header">
                             <img src="${up.face}" alt="${up.uname}" class="up-avatar" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjUiIGZpbGw9IiNmMGYwZjAiLz4KPHN2ZyB4PSIxMiIgeT0iMTIiIHdpZHRoPSIyNiIgaGVpZ2h0PSIyNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjOTk5Ij4KPHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00cy0xLjc5LTQtNC00LTQgMS43OS00IDQgMS43OSA0IDQgNHptMCAyYy0yLjY3IDAtOCAxLjM0LTggNHYyaDE2di0yYzAtMi42Ni01LjMzLTQtOC00eiIvPgo8L3N2Zz4KPC9zdmc+'">
@@ -408,6 +568,14 @@ class BilibiliExporter {
                             </div>
                         </div>
                         <div class="up-sign">${up.sign || '这个人很懒，什么都没有写...'}</div>
+                        ${up.followers != null || up.likes != null || up.videoCount != null || up.level != null || up.official ? `
+                        <div style="margin-top:10px;font-size:13px;color:#444;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;">
+                            ${up.followers != null ? `<div>粉丝：${up.followers}</div>` : ''}
+                            ${up.likes != null ? `<div>获赞：${up.likes}</div>` : ''}
+                            ${up.videoCount != null ? `<div>投稿数：${up.videoCount}</div>` : ''}
+                            ${up.level != null ? `<div>等级：Lv.${up.level}</div>` : ''}
+                            ${up.official ? `<div>认证：${(up.official.title||'官方') }</div>` : ''}
+                        </div>` : ''}
                     </a>
                 `).join('')}
             </div>
@@ -495,7 +663,14 @@ class BilibiliExporter {
             this.updateStatus('正在获取关注列表...');
             
             // 获取所有关注列表
-            const followings = await this.getAllFollowings(vmid);
+            let followings = await this.getAllFollowings(vmid);
+
+            // 如果开启富集，执行富集流程
+            if (this.enableEnrich) {
+                const enrichMap = await this.enrichFollowings(followings);
+                followings = followings.map(up => ({ ...up, ...(enrichMap[up.mid] || {}) }));
+                // 排序区常显，无需在此显示
+            }
             
             this.updateStatus('正在生成HTML文件...');
             

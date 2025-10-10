@@ -14,6 +14,43 @@
         </div>
         
         <div class="content">
+            <div class="enrich-section">
+                <label class="switch-row">
+                    <input type="checkbox" id="enrichToggle" />
+                    <span>富集更多信息（粉丝/获赞/投稿/等级/认证）</span>
+                </label>
+                <div id="enrichOptions" class="enrich-options" style="display:none;">
+                    <label><input type="checkbox" class="enrich-field" value="followers" checked /> 粉丝数</label>
+                    <label><input type="checkbox" class="enrich-field" value="likes" checked /> 获赞数</label>
+                    <label><input type="checkbox" class="enrich-field" value="videos" /> 投稿数</label>
+                    <label><input type="checkbox" class="enrich-field" value="level" /> 等级</label>
+                    <label><input type="checkbox" class="enrich-field" value="official" /> 认证</label>
+                </div>
+                <div id="enrichProgress" class="enrich-progress" style="display:none;">
+                    <span>富集进度: </span>
+                    <span id="enrichCount">0/0</span>
+                    <span id="enrichSkipped" class="muted">（已跳过 0）</span>
+                    <span class="muted" id="concurrencyInfo">（并发 6）</span>
+                </div>
+                <div id="sortRow" class="sort-row" style="display:block;">
+                    <label for="sortSelect">排序：</label>
+                    <select id="sortSelect">
+                        <option value="none">不排序</option>
+                        <option value="followers_desc">按粉丝数（高→低）</option>
+                    </select>
+                </div>
+                <div class="concurrency-row">
+                    <label for="concurrencyInput">并发请求数：</label>
+                    <input id="concurrencyInput" type="number" min="1" value="6" />
+                    <span class="muted">（建议 ≤20，过高易触发限流 429）</span>
+                </div>
+                <div class="concurrency-row">
+                    <label class="switch-row">
+                        <input type="checkbox" id="adaptiveToggle" />
+                        <span>自适应降速（检测到429时自动降并发并增加延时）</span>
+                    </label>
+                </div>
+            </div>
             <div class="info-section">
                 <div class="info-item">
                     <span class="info-label">当前状态:</span>

@@ -40,6 +40,14 @@
 - **认证方式**：通过浏览器Cookie自动认证
 - **分页处理**：自动处理多页数据，每页最多50个UP主
 
+#### 富集模式（可选，方案B）
+- 打开“富集更多信息”后，将按需请求以下接口（并发=6，失败重试2次，自动降级）：
+  - 关系统计：`/x/relation/stat?vmid={mid}` → 粉丝数 follower
+  - UP 统计：`/x/space/upstat?mid={mid}` → 获赞数 likes
+  - 投稿计数：`/x/space/navnum?mid={mid}` → 投稿数
+  - 基本资料：`/x/space/acc/info?mid={mid}` → 等级 level、认证 official（若可用）
+- 若接口受限或需要签名，将跳过该字段，基础导出不受影响。
+
 ### 技术栈
 
 - **Chrome Extension Manifest V3**
