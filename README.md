@@ -24,7 +24,7 @@
 
 ### 图标文件
 
-**重要**：插件需要图标文件才能正常工作。请按照 `icons/README.md` 中的说明准备图标文件。
+需要以下PNG图标：`icons/icon16.png`、`icons/icon32.png`、`icons/icon48.png`、`icons/icon128.png`。
 
 ## 使用方法
 
@@ -61,9 +61,14 @@ pullout_up/
 ├── styles.css             # 样式文件
 ├── icons/                 # 图标文件夹
 │   ├── icon16.png         # 16x16图标
+│   ├── icon32.png         # 32x32图标
 │   ├── icon48.png         # 48x48图标
-│   ├── icon128.png        # 128x128图标
-│   └── README.md          # 图标说明
+│   └── icon128.png        # 128x128图标
+├── LICENSE                # 开源许可证
+├── CONTRIBUTING.md        # 贡献指南
+├── CODE_OF_CONDUCT.md     # 行为准则
+├── SECURITY.md            # 安全披露
+├── CHANGELOG.md           # 变更日志
 └── README.md              # 项目说明
 ```
 
@@ -110,6 +115,12 @@ A: 请确保开启了Chrome的开发者模式，并检查图标文件是否存�
 - [ ] 支持按分类筛选
 - [ ] 添加UP主标签功能
 - [ ] 支持批量关注功能
+
+## 赞助/支持
+
+如果这个项目对你有帮助，欢迎打赏支持 ❤️
+
+<img src="supportme.jpg" alt="赞助二维码" width="320" />
 
 ## 许可证
 

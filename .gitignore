@@ -1,0 +1,20 @@
+# OS
+Thumbs.db
+.DS_Store
+*.log
+
+# Editors
+.vscode/
+.idea/
+*.iml
+
+# Node (if later added)
+node_modules/
+
+# Build artifacts
+/dist/
+/build/
+*.zip
+
+# Misc
+.env
