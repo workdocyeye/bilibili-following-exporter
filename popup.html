@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B站关注列表导出器</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📺 B站关注列表导出器</h1>
+            <p class="subtitle">一键导出您关注的UP主列表</p>
+        </div>
+        
+        <div class="content">
+            <div class="info-section">
+                <div class="info-item">
+                    <span class="info-label">当前状态:</span>
+                    <span id="status" class="status">准备就绪</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">导出进度:</span>
+                    <span id="progress" class="progress">0/0</span>
+                </div>
+            </div>
+            
+            <div class="button-section">
+                <button id="exportBtn" class="export-btn">
+                    <span class="btn-icon">📥</span>
+                    <span class="btn-text">导出关注列表</span>
+                </button>
+            </div>
+            
+            <div class="help-section">
+                <h3>使用说明:</h3>
+                <ul>
+                    <li>确保您已登录B站账号</li>
+                    <li>点击"导出关注列表"按钮</li>
+                    <li>等待数据加载完成</li>
+                    <li>自动下载HTML文件</li>
+                    <li>分享给朋友查看您的关注列表</li>
+                </ul>
+            </div>
+            
+            <div id="errorMsg" class="error-msg" style="display: none;"></div>
+        </div>
+    </div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>
