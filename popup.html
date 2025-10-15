@@ -80,7 +80,29 @@
                 </ul>
             </div>
             
+            <div class="support-section">
+                <button id="supportBtn" class="support-btn">
+                    <span class="btn-icon">❤️</span>
+                    <span class="btn-text">支持作者</span>
+                </button>
+            </div>
+            
             <div id="errorMsg" class="error-msg" style="display: none;"></div>
+            
+            <!-- 赞助弹窗 -->
+            <div id="supportModal" class="support-modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>感谢支持 ❤️</h3>
+                        <button id="closeSupport" class="close-btn">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>如果这个项目对你有帮助，欢迎打赏支持</p>
+                        <img src="supportme.jpg" alt="微信收款码" class="qr-code" />
+                        <p class="support-text">扫码支持作者</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     

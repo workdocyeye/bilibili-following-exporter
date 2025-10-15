@@ -69,6 +69,30 @@ class BilibiliExporter {
                 this.enrichFields[cb.value] = cb.checked;
             });
         });
+        
+        // 赞助按钮事件
+        const supportBtn = document.getElementById('supportBtn');
+        const supportModal = document.getElementById('supportModal');
+        const closeSupport = document.getElementById('closeSupport');
+        
+        if (supportBtn && supportModal) {
+            supportBtn.addEventListener('click', () => {
+                supportModal.style.display = 'flex';
+            });
+        }
+        
+        if (closeSupport && supportModal) {
+            closeSupport.addEventListener('click', () => {
+                supportModal.style.display = 'none';
+            });
+            
+            // 点击背景关闭弹窗
+            supportModal.addEventListener('click', (e) => {
+                if (e.target === supportModal) {
+                    supportModal.style.display = 'none';
+                }
+            });
+        }
     }
     
     // 更新状态显示
